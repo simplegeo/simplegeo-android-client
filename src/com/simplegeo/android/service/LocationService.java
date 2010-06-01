@@ -68,7 +68,7 @@ public class LocationService extends Service implements LocationListener {
 	}
 
 	public void onLocationChanged(Location location) {
-		// Update each handler
+		
 	}
 
 	public void onProviderDisabled(String provider) {
@@ -80,6 +80,7 @@ public class LocationService extends Service implements LocationListener {
 	}
 
 	public void onStatusChanged(String provider, int status, Bundle extras) {
-		// Don't really care
+		LocationManager locationManager = (LocationManager)getSystemService(LOCATION_SERVICE);
+		locationManager.requestLocationUpdates(provider, minTime, minDistance, this);
 	}
 }
