@@ -9,7 +9,7 @@ import java.util.List;
 import org.apache.http.client.ClientProtocolException;
 
 import com.simplegeo.client.test.TestEnvironment;
-import com.simplegeo.client.service.LocationService;
+import com.simplegeo.client.SimpleGeoClient;
 import com.simplegeo.client.test.ModelHelperTest;
 
 
@@ -23,14 +23,14 @@ public class LayerTest extends ModelHelperTest {
 	
 	public void setUp() throws Exception {
 		
-		LocationService.getInstance().getHttpClient().setToken(TestEnvironment.getKey(), TestEnvironment.getSecret());
+		SimpleGeoClient.getInstance().getHttpClient().setToken(TestEnvironment.getKey(), TestEnvironment.getSecret());
 		testingLayer = new Layer(TestEnvironment.getLayer());
 		
 	}
 
 	public void tearDown() {
 		
-		LocationService locationService = LocationService.getInstance();
+		SimpleGeoClient locationService = SimpleGeoClient.getInstance();
 		locationService.futureTask = false;
 		
 		List<IRecord> records = testingLayer.getRecords();

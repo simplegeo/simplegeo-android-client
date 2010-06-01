@@ -19,7 +19,7 @@
     <setup />
 
 	<property name="build.lib" value="${basedir}/libs" />
-	<property name="build.out" value="${basedir}/bin" />
+	<property name="build.out" value="${basedir}/build" />
 	<property name="build.classes" value="${build.out}/classes" />
 	<property name="build.test.dir" value="${build.out}/test" />
 	<property name="test.dir" value="${basedir}/tests" />
@@ -62,6 +62,9 @@
 			</fileset>
 		</copy>
 		<ant dir="${simplegeo.java.client}" antfile="${simplegeo.java.client}/build.xml" target="javadoc"/>
+		<copy todir="${dist.dir}" flatten="true">
+			<fileset dir="${build.out}/javadoc" />
+		</copy>
 		<copy file="${build.out}/${final.name}.jar" todir="${dist.dir}" />
 	</target>
 	

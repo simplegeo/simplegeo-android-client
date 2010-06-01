@@ -3,7 +3,6 @@
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="src" path="gen"/>
 	<classpathentry kind="src" path="tests/src"/>
-	<classpathentry kind="src" path="simplegeo-java-client/src"/>
 	<classpathentry kind="con" path="com.android.ide.eclipse.adt.ANDROID_FRAMEWORK"/>
 	<classpathentry kind="lib" path="libs/geohash-java-1.0.jar"/>
 	<classpathentry kind="lib" path="libs/signpost-commonshttp4-1.2.jar"/>
