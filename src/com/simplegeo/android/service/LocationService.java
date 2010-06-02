@@ -1,6 +1,13 @@
 package com.simplegeo.android.service;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+
+import org.apache.http.client.ClientProtocolException;
+
+import com.simplegeo.client.SimpleGeoClient;
+import com.simplegeo.client.model.IRecord;
 
 import android.app.Service;
 import android.content.Intent;
@@ -11,7 +18,6 @@ import android.location.LocationManager;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.os.Messenger;
 
 public class LocationService extends Service implements LocationListener {
 	
@@ -20,6 +26,10 @@ public class LocationService extends Service implements LocationListener {
 	
 	private long minTime;
 	private float minDistance;
+	
+	private boolean cacheUpdates;
+	
+	private List<ILocationHandler> locationHandlers = new ArrayList<ILocationHandler>();
 
     public class LocationBinder extends Binder {
         LocationService getService() {
@@ -45,10 +55,19 @@ public class LocationService extends Service implements LocationListener {
     public void onDestroy() {
     	
     }
-    
+
     public void updateProviders() {
     	updateProviders(null);
     }
+    
+    public void addLocationHandler(ILocationHandler locationHandler) {
+    	locationHandlers.add(locationHandler);
+    }
+    
+    public void removeLocationHandler(ILocationHandler locationHandler) {
+    	locationHandlers.remove(locationHandler);
+    }
+    
     public void updateProviders(Criteria criteria) {
     	if(criteria == null)
     		criteria = generateCriteria();
@@ -69,6 +88,28 @@ public class LocationService extends Service implements LocationListener {
 
 	public void onLocationChanged(Location location) {
 		
+		List<IRecord> updateRecords = new ArrayList<IRecord>();
+		List<IRecord> cacheRecords = new ArrayList<IRecord>();
+		for(ILocationHandler locationHandler : locationHandlers) {
+			List<IRecord> records = locationHandler.getRecords(location);
+			if(records != null && !records.isEmpty())
+				if(cacheUpdates)
+					cacheRecords.addAll(records);
+				else
+					updateRecords.addAll(records);
+		}
+		
+		if(!updateRecords.isEmpty())
+			try {
+				SimpleGeoClient.getInstance().update(updateRecords);
+			} catch (ClientProtocolException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		
+		if(!cacheRecords.isEmpty())
+			cacheRecords(cacheRecords);
 	}
 
 	public void onProviderDisabled(String provider) {
@@ -82,5 +123,23 @@ public class LocationService extends Service implements LocationListener {
 	public void onStatusChanged(String provider, int status, Bundle extras) {
 		LocationManager locationManager = (LocationManager)getSystemService(LOCATION_SERVICE);
 		locationManager.requestLocationUpdates(provider, minTime, minDistance, this);
+	}
+	
+	public void cacheRecords(List<IRecord> records) {
+		
+	}
+	
+	/**
+	 * @return the cacheUpdates
+	 */
+	public boolean isCacheUpdates() {
+		return cacheUpdates;
+	}
+
+	/**
+	 * @param cacheUpdates the cacheUpdates to set
+	 */
+	public void setCacheUpdates(boolean cacheUpdates) {
+		this.cacheUpdates = cacheUpdates;
 	}
 }
