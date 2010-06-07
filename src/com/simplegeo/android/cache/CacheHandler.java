@@ -5,12 +5,14 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import android.content.Context;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import android.util.Log;
 
 public class CacheHandler {
@@ -19,21 +21,30 @@ public class CacheHandler {
 	
 	private Timer flushTimer = null;
 	private long flushTimeInterval = 60;
-	private String absoluteFile = null; 
-	private Map<String, String> data = null;
+	private String absoluteFile = null;
+	private String currentPath = null;
+	private JSONObject data = null;
+	
+	// I miss real pointers
+	private JSONObject parentData = null;
+	private JSONObject currentData = null;
 	
 	public static long ttl =  604800;
 	
 	public CacheHandler(String fileName, String cachePath) {
 		File cacheDir = new File(cachePath + File.separator + fileName);
-		if(!cacheDir.exists())
-			cacheDir.mkdir();
-		
 		absoluteFile = cacheDir.getAbsolutePath();
+		
+		if(!cacheDir.exists() && !cacheDir.mkdir())
+			Log.e(TAG, "unable to create " + absoluteFile);
+		
+		currentPath = absoluteFile;
+		parentData = null;
+		data = new JSONObject();
+		currentData = data;
 	
 		deleteStaleCacheFiles(absoluteFile);
 		reload();
-		startFlushTimer();
 	}
 		
 	public void startFlushTimer() {
@@ -62,44 +73,122 @@ public class CacheHandler {
 	
 	public void flush() {
 		Log.d(TAG, "flushing the cache handler");
-		
-		for(String key : data.keySet()) {
-			String value = data.get(key);
-			String path = absoluteFile + File.separator + key;
-			try {
-				File file = new File(path);
-				if(!file.exists() && !file.createNewFile())
-					Log.e(TAG, "unable to create file at " + path);
-				
-				FileOutputStream fileOutputStream = new FileOutputStream(path);
-				fileOutputStream.write(value.getBytes());
-				fileOutputStream.close();
-				fileOutputStream = null;
-				data.remove(key);
-
-			} catch (FileNotFoundException e) {
-				Log.e(TAG, e.getLocalizedMessage());
-			} catch (IOException e) {
-				Log.e(TAG, e.getLocalizedMessage());
-			}
-		}
-
-		data = new HashMap<String, String>();
+		flushJSONObject(absoluteFile, data, null);
+		data = new JSONObject();
+		parentData = null;
+		currentData = data;
 	}
 	
+	private void flushJSONObject(String path, JSONObject object, String key) {
+		try {
+			
+			if(key == null) {
+				
+				Iterator<String> keys = object.keys();
+				while(keys.hasNext())
+					flushJSONObject(path, object, keys.next());
+				
+			} else {
+			
+				Object value = object.get(key);
+				String newPath = path + File.separator + key;
+				if(value instanceof JSONObject) {
+					Iterator<String> keys = object.keys();
+					while(keys.hasNext())
+						flushJSONObject(path, (JSONObject)value, keys.next());
+				} else if(value instanceof String) {
+					writeStringToPath((String)value, newPath);
+				}			
+			}
+			
+		} catch (JSONException e) {
+			Log.e(TAG, e.getLocalizedMessage());
+		}
+	}
+	
+	private void writeStringToPath(String value, String path) {
+		File file = new File(path);
+		try {
+			if(!file.exists() && !file.createNewFile())
+				Log.e(TAG, "unable to create file at " + path);
+		
+			FileOutputStream fileOutputStream = new FileOutputStream(path);
+			fileOutputStream.write(value.getBytes());
+			fileOutputStream.close();
+			fileOutputStream = null;
+			
+		} catch (FileNotFoundException e) {
+			Log.e(TAG, e.getLocalizedMessage());
+		} catch (IOException e) {
+			Log.e(TAG, e.getLocalizedMessage());
+		}
+	}
+	
+	public void changeToParentDirectory() {
+		currentPath = absoluteFile;
+		currentData = data;
+	}
+	
+	public void changeDirectory(String directory) {
+		String childPath = currentPath + File.separator + directory;
+		File file =  new File(childPath);
+		if(!file.exists() && !file.mkdir())
+			Log.e(TAG, "unable to create director " + childPath);
+		
+		if(file.exists() && file.isDirectory())
+			currentPath = childPath;
+		
+		try {
+			JSONObject jsonObject = (JSONObject)currentData.get(directory);
+			parentData = currentData;
+			if(jsonObject != null && jsonObject instanceof JSONObject)
+				currentData = jsonObject;
+			else {
+				jsonObject = new JSONObject();
+				currentData.put(directory, jsonObject);
+				currentData = jsonObject;
+			}
+			
+		} catch (JSONException e) {
+			Log.e(TAG, e.getLocalizedMessage());
+		}
+	}
+		
 	public void setValue(String key, String value) {
-		data.put(key, value);
+		try {
+			currentData.put(key, value);
+		} catch (JSONException e) {
+			Log.e(TAG, e.getLocalizedMessage());
+		}
 	}
 	
 	public String getValue(String key) {
-		return data.get(key);
+		String value = null;
+		try {
+			value = (String)currentData.get(key);
+		} catch (JSONException e) {
+			Log.e(TAG, e.getLocalizedMessage());
+		}
+		
+		return value;
 	}
 	
 	public void deleteAll() {
-		data = new HashMap<String, String>();
+		data = new JSONObject();
+		changeToParentDirectory();
 		File file = new File(absoluteFile);
-		file.delete();
+		recursiveDelete(file);
 		file.mkdir();
+	}
+	
+	public void recursiveDelete(File file) {
+		File[] files = file.listFiles();
+		for(File subdir : files) {
+			if(subdir.isDirectory())
+				recursiveDelete(subdir);
+			else
+				subdir.delete();
+		}
 	}
 	
 	public void delete(String key) {
@@ -110,22 +199,38 @@ public class CacheHandler {
 	}
 	
 	public void reload() {
-		data = new HashMap<String, String>();
-		File file = new File(absoluteFile);
-		File[] children = file.listFiles();
-		for(File child : children) {
-			if(file.isFile()) {
-				try {
-
-					FileInputStream inputStream = new FileInputStream(child);
-					byte[] buffer = new byte[inputStream.available()];
-					inputStream.read(buffer);
-					data.put(file.getName(), new String(buffer));
-
-				} catch (FileNotFoundException e) {
-					Log.e(TAG, e.getLocalizedMessage());
-				} catch (IOException e) {
-					Log.e(TAG, e.getLocalizedMessage());
+		Log.d(TAG, "reloading data from disk");
+		
+		data = new JSONObject();
+		changeToParentDirectory();
+		try {
+			loadDirectory(data, absoluteFile);
+		} catch (JSONException e) {
+			Log.e(TAG, e.getLocalizedMessage());
+		}
+	}
+	
+	private void loadDirectory(JSONObject jsonObject, String path) throws JSONException {
+		Log.d(TAG, "reloading directory " + path);
+		File file = new File(path);
+		if(file.exists()) {
+			File[] children = file.listFiles();
+			for(File child : children) {
+				if(child.isFile()) {
+					try {
+						FileInputStream inputStream = new FileInputStream(child);
+						byte[] buffer = new byte[inputStream.available()];
+						inputStream.read(buffer);
+						data.put(child.getName(), new String(buffer));
+					} catch (FileNotFoundException e) {
+						Log.e(TAG, e.getLocalizedMessage());
+					} catch (IOException e) {
+						Log.e(TAG, e.getLocalizedMessage());
+					}
+				} else if(child.isDirectory()) {
+					JSONObject newJSONObject = new JSONObject();
+					jsonObject.put(file.getName(), newJSONObject);
+					loadDirectory(newJSONObject, path + File.separator + child);
 				}
 			}
 		}
@@ -135,16 +240,17 @@ public class CacheHandler {
 		Log.d(TAG, "deleting stale files at " + path);
 		
 		long currentTime = System.currentTimeMillis();
-		
 		File file = new File(path);
-		File[] subdirectories = file.listFiles();
-		for(File subdirectory : subdirectories) {
-			if(subdirectory.isDirectory()) {
-				deleteStaleCacheFiles(subdirectory.getAbsolutePath());
-			} else if(subdirectory.isFile()) {
-				if(currentTime - subdirectory.lastModified() < ttl &&
-						!subdirectory.delete())
-					Log.e(TAG, "unable to delete file at " + subdirectory.getAbsolutePath());		
+		if(file.exists()) {
+			File[] subdirectories = file.listFiles();
+			for(File subdirectory : subdirectories) {
+				if(subdirectory.isDirectory()) {
+					deleteStaleCacheFiles(subdirectory.getAbsolutePath());
+				} else if(subdirectory.isFile()) {
+					if(currentTime - subdirectory.lastModified() > ttl &&
+							!subdirectory.delete())
+						Log.e(TAG, "unable to delete file at " + subdirectory.getAbsolutePath());		
+				}
 			}
 		}
 	}

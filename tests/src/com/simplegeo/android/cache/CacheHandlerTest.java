@@ -1,15 +1,17 @@
 package com.simplegeo.android.cache;
 
 import android.test.AndroidTestCase;
+import android.test.suitebuilder.annotation.SmallTest;
 
 public class CacheHandlerTest extends AndroidTestCase {
 	
-	private CacheHandler cacheHandler = new CacheHandler("simplegeo_test", "/tmp");;
+	private CacheHandler cacheHandler = new CacheHandler("simplegeo_test", "/sdcard");
 		
 	public void tearDown() {
 		cacheHandler.deleteAll();
 	}
 	
+	@SmallTest
 	public void testCacheSetValue() {
 		
 		cacheHandler.setValue("commit-1", "goldfinger");
@@ -20,6 +22,7 @@ public class CacheHandlerTest extends AndroidTestCase {
 		
 	}
 	
+	@SmallTest
 	public void testCacheDeleteValue() {
 		
 		cacheHandler.setValue("commit-1", "goldfinger");
@@ -30,6 +33,7 @@ public class CacheHandlerTest extends AndroidTestCase {
 		assertTrue(cacheHandler.getValue("commit-2").equals("boris"));
 	}
 	
+	@SmallTest
 	public void testCacheFlush() {
 
 		cacheHandler.setValue("commit-1", "goldfinger");

@@ -85,7 +85,7 @@
 			<arg value="am" />
 			<arg value="instrument" />
 			<arg value="-w" />
-			<arg value="com.simplegeo.client/android.test.InstrumentationTestRunner" />
+			<arg value="com.simplegeo.android/android.test.InstrumentationTestRunner" />
 		</exec>
 	</target>
 	
