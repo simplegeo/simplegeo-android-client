@@ -44,6 +44,12 @@ import org.json.JSONObject;
 
 import android.util.Log;
 
+/**
+ * This class has the ability to traverse a directory structure using a given
+ * path and write blocks of data in the form of a file.
+ * 
+ * @author dsmith
+ */
 public class CacheHandler {
 	
 	private static final String TAG = CacheHandler.class.getCanonicalName();
@@ -58,8 +64,20 @@ public class CacheHandler {
 	private JSONObject parentData = null;
 	private JSONObject currentData = null;
 	
+	/**
+	 * If a file has been modified within the given amount of time,
+	 * then it will be deleted when {@link com.simplegeo.android.cache.CacheHandler#deleteStaleCacheFiles(String)}
+	 * is called.
+	 */
 	public static long ttl =  604800;
 	
+	/**
+	 * Initializes a new CacheHandler object while creating the cache path
+	 * if necessary.
+	 * 
+	 * @param cachePath the aboslute path to write to
+	 * @param fileName the name of the directory to create within the cachePath
+	 */
 	public CacheHandler(String cachePath, String fileName) {
 		File cacheDir = new File(cachePath + File.separator + fileName);
 		absoluteFile = cacheDir.getAbsolutePath();
@@ -76,6 +94,9 @@ public class CacheHandler {
 		reload();
 	}
 		
+	/**
+	 * Initiates the flush timer.
+	 */
 	public void startFlushTimer() {
 		if(flushTimer == null) {
 			Log.d(TAG, "starting the flush timer");
@@ -91,6 +112,9 @@ public class CacheHandler {
 		}
 	}
 	
+	/**
+	 * Cancels the flush timer.
+	 */
 	public void stopFlushTimer() {
 		if(flushTimer != null) {
 			Log.d(TAG, "stoping the flush timer");
@@ -100,6 +124,10 @@ public class CacheHandler {
 		}
 	}
 	
+	/**
+	 * Flushes the entire data memory structure to disk, maintaining
+	 * the hierarchical structure.
+	 */
 	public void flush() {
 		Log.d(TAG, "flushing the cache handler");
 		flushJSONObject(absoluteFile, data, null);
@@ -153,12 +181,20 @@ public class CacheHandler {
 		}
 	}
 	
+	/**
+	 * Returns the cache handler to the directory it was initiated at.
+	 */
 	public void changeToParentDirectory() {
 		Log.d(TAG, "changing to parent at " + absoluteFile);
 		currentPath = absoluteFile;
 		currentData = data;
 	}
 	
+	/**
+	 * Returns the cache handler to the specified directory.
+	 * 
+	 * @param directory the directory to point to
+	 */
 	public void changeDirectory(String directory) {
 		String childPath = currentPath + File.separator + directory;
 		File file =  new File(childPath);
@@ -185,6 +221,12 @@ public class CacheHandler {
 		}
 	}
 		
+	/**
+	 * Sets the value for the given key within the current directory/level.
+	 * 
+	 * @param key the key
+	 * @param value the values
+	 */
 	public void setValue(String key, String value) {
 		try {
 			currentData.put(key, value);
@@ -193,6 +235,10 @@ public class CacheHandler {
 		}
 	}
 	
+	/**
+	 * @param key
+	 * @return
+	 */
 	public String getValue(String key) {
 		String value = null;
 		try {
@@ -204,6 +250,9 @@ public class CacheHandler {
 		return value;
 	}
 	
+	/**
+	 * @return a list of all the keys defined at the current level/directory
+	 */
 	public List<String> getKeys() {
 		List<String> values = new ArrayList<String>();
 		Iterator<String> keys = currentData.keys();
@@ -213,6 +262,9 @@ public class CacheHandler {
 		return values;
 	}
 	
+	/**
+	 * @return a list of all the values created at the current level/directory
+	 */
 	public List<String> getAllValues() {
 		List<String> values = new ArrayList<String>();
 		Iterator<String> keys = currentData.keys();
@@ -222,6 +274,10 @@ public class CacheHandler {
 		return values;
 	}
 	
+	/**
+	 * Removes all directories and files that have been created by the cache handler. This
+	 * also removes all in memeory data structures.
+	 */
 	public void deleteAll() {
 		data = new JSONObject();
 		changeToParentDirectory();
@@ -230,7 +286,7 @@ public class CacheHandler {
 		file.mkdir();
 	}
 	
-	public void recursiveDelete(File file) {
+	private void recursiveDelete(File file) {
 		File[] files = file.listFiles();
 		for(File subdir : files) {
 			if(subdir.isDirectory())
@@ -240,6 +296,12 @@ public class CacheHandler {
 		}
 	}
 	
+	/**
+	 * Deletes all files, directories and in-memory objects for the given key
+	 * at the current path.
+	 * 
+	 * @param key
+	 */
 	public void delete(String key) {
 		data.remove(key);
 		File fileToDelete = new File(absoluteFile + File.separator + key);
@@ -247,6 +309,10 @@ public class CacheHandler {
 			Log.e(TAG, "unable to delete file at " + fileToDelete.getAbsolutePath());
 	}
 	
+	/**
+	 * Disregards all current, in-memory objects and reloads them from the current
+	 * disk representation.
+	 */
 	public void reload() {
 		Log.d(TAG, "reloading data from disk");
 		
@@ -285,7 +351,7 @@ public class CacheHandler {
 		}
 	}
 	
-	public void deleteStaleCacheFiles(String path) {
+	private void deleteStaleCacheFiles(String path) {
 		long currentTime = System.currentTimeMillis();
 		File file = new File(path);
 		if(file.exists()) {

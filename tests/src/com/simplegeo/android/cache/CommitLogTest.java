@@ -32,6 +32,7 @@ import android.test.AndroidTestCase;
 
 public class CommitLogTest extends AndroidTestCase {
 
+	// The path needs to be writable by the testing environment
 	private CommitLog commitLog = new CommitLog("/sdcard/testing-commitlog", "agate");
 
 	public void setUp() {

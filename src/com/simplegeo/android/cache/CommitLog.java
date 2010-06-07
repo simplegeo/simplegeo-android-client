@@ -28,25 +28,53 @@
  */
 package com.simplegeo.android.cache;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * A wrapper class for the {@link com.simplegeo.android.cache.CacheHandler} that controls
+ * a three level data structure defined like:
+ * 
+ * commitlog-${cache_path} -> ${username} -> ${key} -> commit-${current_time}
+ * 
+ *  This might make it easier to load commits that happened within a certain
+ *  time interval.
+ * 
+ * @author dsmith
+ */
 public class CommitLog {
 	
 	private CacheHandler cacheHandler = null;
 	
+	/**
+	 * Initializes a cache handler that will used to do data stores and retrievals.
+	 * 
+	 * @param path the top-level path where the files will be located
+	 * @param username the username that acts as the second-level directory 
+	 */
 	public CommitLog(String path, String username) {
 		cacheHandler = new CacheHandler(path, "commitlog-" + username);
 	}
 	
+	/**
+	 * Commits a new value for the given key. The commit value is stored in
+	 * at file:
+	 * 
+	 * commitlog-${cache_path} -> ${username} -> ${key} -> commit-${current_time}
+	 * 
+	 * @param key the key 
+	 * @param commit the commits
+	 */
 	public void commit(String key, String commit) {
 		cacheHandler.changeToParentDirectory();
 		cacheHandler.changeDirectory(key);
 		cacheHandler.setValue(getCommitKey(), commit);
 	}
 
+	/**
+	 * @return all the commits for the user
+	 */
 	public Map<String, List<String>> getAllCommits() {
 		cacheHandler.changeToParentDirectory();
 		List<String> keys = cacheHandler.getKeys();
@@ -57,17 +85,29 @@ public class CommitLog {
 		return commits;
 	}
 	
+	/**
+	 * @param key the key
+	 * @return the commits for the user for a given key
+	 */
 	public List<String> getCommits(String key) {
 		cacheHandler.changeToParentDirectory();
 		cacheHandler.changeDirectory(key);
 		return cacheHandler.getAllValues();
 	}
 	
+	/**
+	 * Deletes all commits that are located within a key.
+	 * 
+	 * @param key
+	 */
 	public void deleteCommits(String key) {
 		cacheHandler.changeToParentDirectory();
 		cacheHandler.delete(key);
 	}
 	
+	/**
+	 * Deletes all commits for the user.
+	 */
 	public void deleteAllCommits() {
 		cacheHandler.deleteAll();
 	}
