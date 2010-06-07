@@ -5,6 +5,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Timer;
@@ -31,11 +32,11 @@ public class CacheHandler {
 	
 	public static long ttl =  604800;
 	
-	public CacheHandler(String fileName, String cachePath) {
+	public CacheHandler(String cachePath, String fileName) {
 		File cacheDir = new File(cachePath + File.separator + fileName);
 		absoluteFile = cacheDir.getAbsolutePath();
 		
-		if(!cacheDir.exists() && !cacheDir.mkdir())
+		if(!cacheDir.exists() && !cacheDir.mkdirs())
 			Log.e(TAG, "unable to create " + absoluteFile);
 		
 		currentPath = absoluteFile;
@@ -125,6 +126,7 @@ public class CacheHandler {
 	}
 	
 	public void changeToParentDirectory() {
+		Log.d(TAG, "changing to parent at " + absoluteFile);
 		currentPath = absoluteFile;
 		currentData = data;
 	}
@@ -133,24 +135,25 @@ public class CacheHandler {
 		String childPath = currentPath + File.separator + directory;
 		File file =  new File(childPath);
 		if(!file.exists() && !file.mkdir())
-			Log.e(TAG, "unable to create director " + childPath);
+			Log.e(TAG, "unable to create directory " + childPath);
 		
 		if(file.exists() && file.isDirectory())
 			currentPath = childPath;
 		
 		try {
+			
 			JSONObject jsonObject = (JSONObject)currentData.get(directory);
 			parentData = currentData;
-			if(jsonObject != null && jsonObject instanceof JSONObject)
-				currentData = jsonObject;
-			else {
-				jsonObject = new JSONObject();
+			currentData = jsonObject;
+		
+		} catch (JSONException e) {
+			JSONObject jsonObject = new JSONObject();
+			try {
 				currentData.put(directory, jsonObject);
 				currentData = jsonObject;
+			} catch (JSONException e1) {
+				Log.e(TAG, e.getLocalizedMessage());			
 			}
-			
-		} catch (JSONException e) {
-			Log.e(TAG, e.getLocalizedMessage());
 		}
 	}
 		
@@ -171,6 +174,24 @@ public class CacheHandler {
 		}
 		
 		return value;
+	}
+	
+	public List<String> getKeys() {
+		List<String> values = new ArrayList<String>();
+		Iterator<String> keys = currentData.keys();
+		while(keys.hasNext())
+			values.add(keys.next());
+			
+		return values;
+	}
+	
+	public List<String> getAllValues() {
+		List<String> values = new ArrayList<String>();
+		Iterator<String> keys = currentData.keys();
+		while(keys.hasNext())
+			values.add(getValue(keys.next()));
+		
+		return values;
 	}
 	
 	public void deleteAll() {
@@ -230,15 +251,13 @@ public class CacheHandler {
 				} else if(child.isDirectory()) {
 					JSONObject newJSONObject = new JSONObject();
 					jsonObject.put(file.getName(), newJSONObject);
-					loadDirectory(newJSONObject, path + File.separator + child);
+					loadDirectory(newJSONObject, child.getAbsolutePath());
 				}
 			}
 		}
 	}
 	
 	public void deleteStaleCacheFiles(String path) {
-		Log.d(TAG, "deleting stale files at " + path);
-		
 		long currentTime = System.currentTimeMillis();
 		File file = new File(path);
 		if(file.exists()) {
@@ -249,7 +268,9 @@ public class CacheHandler {
 				} else if(subdirectory.isFile()) {
 					if(currentTime - subdirectory.lastModified() > ttl &&
 							!subdirectory.delete())
-						Log.e(TAG, "unable to delete file at " + subdirectory.getAbsolutePath());		
+						Log.e(TAG, "unable to delete file at " + subdirectory.getAbsolutePath());
+					else
+						Log.d(TAG, "deleting stale files at " + subdirectory.getAbsolutePath());
 				}
 			}
 		}
