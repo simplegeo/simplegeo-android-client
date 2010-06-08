@@ -46,6 +46,7 @@
     </path>
 
     <target name="init">
+        <mkdir dir="${build.classes}" />
         <git command="clone">
             <args>
                 <arg value="git://github.com/simplegeo/simplegeo-java-client.git" />
