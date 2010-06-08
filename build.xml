@@ -18,57 +18,93 @@
         classpathref="android.antlibs" />
     <setup />
 
-	<property name="build.lib" value="${basedir}/libs" />
-	<property name="build.out" value="${basedir}/build" />
-	<property name="build.classes" value="${build.out}/classes" />
-	<property name="build.test.dir" value="${build.out}/test" />
-	<property name="test.dir" value="${basedir}/tests" />
-	<property name="test.src.dir" value="${test.dir}/src" />
-	<property name="test.classes" value="${build.out}/test/classes" />
-	<property name="simplegeo.java.client" value="${basedir}/simplegeo-java-client" />
-	<property name="dist.dir" value="${basedir}/dist" />
-	<property name="android.dist.dir" value="${dist.dir}/android" />
-	<property name="version" value="0.1.0" />
-	<property name="final.name" value="simplegeo-android-client-${version}" />
-	
+    <property name="build.lib" value="${basedir}/libs" />
+    <property name="build.out" value="${basedir}/build" />
+    <property name="build.classes" value="${build.out}/classes" />
+    <property name="build.test.dir" value="${build.out}/test" />
+    <property name="src.dir" value="${basedir}/src" />    
+    <property name="test.dir" value="${basedir}/tests" />
+    <property name="test.src.dir" value="${test.dir}/src" />
+    <property name="test.classes" value="${build.out}/test/classes" />
+    <property name="simplegeo.java.client" value="${basedir}/simplegeo-java-client" />
+    <property name="dist.dir" value="${basedir}/dist" />   
+    <property name="java.doc.dir" value="${dist.dir}/javadoc" />
+    <property name="version" value="0.1.0" />
+    <property name="final.name" value="simplegeo-android-client-${version}" />
+
     <path id="android.simplegeo.classpath">
+        <pathelement location="${build.classes}"/>
         <fileset dir="${build.lib}">
-        	<include name="*.jar" />
+            <include name="*.jar" />
         </fileset>
-    	<fileset dir="${build.out}">
-    	  	<include name="*.jar" />
-    	</fileset>
-    	<fileset dir="${sdk.dir}/platforms/android-1.5">
-    		<include name="android.jar" />
-		</fileset>
+        <fileset dir="${simplegeo.java.client}/bin">
+            <include name="*.jar" />
+        </fileset>
+        <fileset dir="${sdk.dir}/platforms/android-2.0">
+            <include name="android.jar" />
+        </fileset>
     </path>
 
-	<target name="init">
-		<git command="clone">
-		    <args>
-		        <arg value="git://github.com/simplegeo/simplegeo-java-client.git" />
-		        <arg value="simplegeo-java-client" />
-		    </args>
-		</git>
-		<ant dir="${simplegeo.java.client}" antfile="${simplegeo.java.client}/build.xml" target="jar"/>
-	</target>
-	
-	<target name="dist" depends="init">
-		<mkdir dir="${dist.dir}" />
-		<mkdir dir="${android.dist.dir}" />
-		<copy todir="${dist.dir}" flatten="true">
-			<fileset dir="${build.lib}">
-				<include name="*.jar" />
-			</fileset>
-		</copy>
-		<ant dir="${simplegeo.java.client}" antfile="${simplegeo.java.client}/build.xml" target="javadoc"/>
-		<copy todir="${dist.dir}" flatten="true">
-			<fileset dir="${build.out}/javadoc" />
-		</copy>
-		<copy file="${build.out}/${final.name}.jar" todir="${dist.dir}" />
-	</target>
-	
-    <target name="build-test" depends="init">
+    <target name="init">
+        <git command="clone">
+            <args>
+                <arg value="git://github.com/simplegeo/simplegeo-java-client.git" />
+                <arg value="simplegeo-java-client" />
+            </args>
+        </git>
+        <ant inheritAll="false" dir="${simplegeo.java.client}" antfile="${simplegeo.java.client}/build.xml" target="jar"/>
+    </target>
+
+    <target name="jar" depends="build">
+            <mkdir dir="${build.classes}/META-INF" />
+            <jar jarfile="${build.out}/${final.name}.jar" basedir="${build.classes}" />
+    </target>
+
+    <target name="dist" depends="build,javadoc,jar">
+        <mkdir dir="${dist.dir}" />
+        <copy todir="${dist.dir}" flatten="true">
+            <fileset dir="${build.lib}">
+                <include name="*.jar" />
+            </fileset>
+        </copy>
+        <copy todir="${dist.dir}">
+            <fileset dir="${simplegeo.java.client}/bin">
+                <include name="*.jar" />
+            </fileset>
+        </copy>
+        <copy file="${build.out}/${final.name}.jar" todir="${dist.dir}" />
+    </target>
+
+    <target name="build" depends="init">
+        <javac destdir="${build.classes}" >
+          <classpath>
+            <path refid="android.simplegeo.classpath" />
+          </classpath>
+          <src path="${src.dir}"/>
+        </javac>
+    </target>
+
+    <target name="javadoc" depends="init">
+        <tstamp>
+            <format property="YEAR" pattern="yyyy"/>
+        </tstamp>
+        <javadoc destdir="${java.doc.dir}" author="true" version="true" use="true"
+             windowtitle="${ant.project.name}" classpathref="android.simplegeo.classpath"
+                  bottom="Copyright &amp;copy; ${YEAR} SimpleGeo Inc">
+              <fileset dir="${src.dir}" defaultexcludes="yes">
+                  <include name="**/*.java"/>
+              </fileset>
+              <fileset dir="${simplegeo.java.client}/src" defaultexcludes="yes">
+                  <include name="**/*.java"/>
+              </fileset>
+         </javadoc>
+    </target>
+
+<!--
+   -
+   - Testing is done from Eclipse for now
+   -
+    <target name="build-test" depends="build">
         <mkdir dir="${test.classes}" />
         <javac destdir="${test.classes}" >
           <classpath>
@@ -77,48 +113,49 @@
           <src path="${test.src.dir}"/>
         </javac>
     </target>
-		
-	<target name="test" depends="build-test">
-		<ant antfile="build.xml" target="reinstall" />
-		<exec executable="adb" >
-			<arg value="shell"/>
-			<arg value="am" />
-			<arg value="instrument" />
-			<arg value="-w" />
-			<arg value="com.simplegeo.android/android.test.InstrumentationTestRunner" />
-		</exec>
-	</target>
-	
-	<target name="clean">
-		<delete dir="${simplegeo.java.client}" />
-		<delete dir="${build.out}" />
-		<delete dir="${dist.dir}" />
-	</target>
-	
-	<macrodef name="git">
-	    <attribute name="command" />
-	    <attribute name="dir" default="" />
-	    <element name="args" optional="true" />
-	    <sequential>
-	        <echo message="git @{command}" />
-	        <exec executable="git" dir="@{dir}">
-	            <arg value="@{command}" />
-	            <args/>
-	        </exec>
-	    </sequential>
-	</macrodef>
 
-	<macrodef name="git-clone-pull">
-	    <attribute name="repository" />
-	    <attribute name="dest" />
-	    <sequential>
-	        <git command="clone">
-	            <args>
-	                <arg value="@{repository}" />
-	                <arg value="@{dest}" />
-	            </args>
-	        </git>
-	        <git command="pull" dir="@{dest}" />
-	    </sequential>
-	</macrodef>
+    <target name="test" depends="build-test">
+        <ant antfile="build.xml" target="reinstall" />
+        <exec executable="adb" >
+            <arg value="shell"/>
+            <arg value="am" />
+            <arg value="instrument" />
+            <arg value="-w" />
+            <arg value="com.simplegeo.android/android.test.InstrumentationTestRunner" />
+        </exec>
+    </target>
+-->
+
+    <target name="clean">
+        <delete dir="${simplegeo.java.client}" />
+        <delete dir="${build.out}" />
+        <delete dir="${dist.dir}" />
+    </target>
+
+    <macrodef name="git">
+        <attribute name="command" />
+        <attribute name="dir" default="" />
+        <element name="args" optional="true" />
+        <sequential>
+            <echo message="git @{command}" />
+            <exec executable="git" dir="@{dir}">
+                <arg value="@{command}" />
+                <args/>
+            </exec>
+        </sequential>
+    </macrodef>
+
+    <macrodef name="git-clone-pull">
+        <attribute name="repository" />
+        <attribute name="dest" />
+        <sequential>
+            <git command="clone">
+                <args>
+                    <arg value="@{repository}" />
+                    <arg value="@{dest}" />
+                </args>
+            </git>
+            <git command="pull" dir="@{dest}" />
+        </sequential>
+    </macrodef>
 </project>
