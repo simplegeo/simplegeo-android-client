@@ -140,13 +140,12 @@ public class CacheHandler {
 		try {
 			
 			if(key == null) {
-				
 				Iterator<String> keys = object.keys();
 				while(keys.hasNext())
 					flushJSONObject(path, object, keys.next());
 				
 			} else {
-			
+				Log.d(TAG, "flushing " + key);
 				Object value = object.get(key);
 				String newPath = path + File.separator + key;
 				if(value instanceof JSONObject) {
