@@ -31,11 +31,11 @@ package com.simplegeo.android.service;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
 
 import org.apache.http.client.ClientProtocolException;
-
-import com.simplegeo.client.SimpleGeoClient;
-import com.simplegeo.client.model.IRecord;
+import org.json.JSONArray;
 
 import android.app.Service;
 import android.content.Intent;
@@ -46,18 +46,31 @@ import android.location.LocationManager;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.util.Log;
+
+import com.simplegeo.android.cache.CommitLog;
+import com.simplegeo.client.SimpleGeoClient;
+import com.simplegeo.client.encoder.GeoJSONEncoder;
+import com.simplegeo.client.geojson.GeoJSONObject;
+import com.simplegeo.client.model.DefaultRecord;
+import com.simplegeo.client.model.IRecord;
+import com.simplegeo.client.model.Region;
 
 public class LocationService extends Service implements LocationListener {
+	
+	private static final String TAG = LocationService.class.getCanonicalName();
 	
 	public static final String MIN_TIME = "minimum_time";
 	public static final String MIN_DISTANCE = "minimun_distance";
 	
 	private long minTime;
 	private float minDistance;
-	
 	private boolean cacheUpdates;
 	
+	private Location previousLocation = null;
+	private List<Region> regions = null;
 	private List<ILocationHandler> locationHandlers = new ArrayList<ILocationHandler>();
+	private CommitLog commitLog = null;
 
     public class LocationBinder extends Binder {
         LocationService getService() {
@@ -76,6 +89,10 @@ public class LocationService extends Service implements LocationListener {
 	
     @Override
     public void onCreate() {
+    	String username = "blah";
+    	String cachePath = "blah";
+    	commitLog = new CommitLog(cachePath, username);
+
 		updateProviders();
     }	
     
@@ -115,7 +132,82 @@ public class LocationService extends Service implements LocationListener {
 	}
 
 	public void onLocationChanged(Location location) {
+		Log.d(TAG, "location updated to " + location.toString());
 		
+		for(ILocationHandler handler : locationHandlers)
+			handler.onLocationChanged(previousLocation, location);
+		
+		updateRecordsFromLocation(location);
+		updateRegionsFromLocation(location);
+		
+		previousLocation = location;
+	}
+
+	public void onProviderDisabled(String provider) {
+		// Don't really care...
+	}
+
+	public void onProviderEnabled(String provider) {
+		// Possibly add as a listener?
+	}
+
+	public void onStatusChanged(String provider, int status, Bundle extras) {
+		LocationManager locationManager = (LocationManager)getSystemService(LOCATION_SERVICE);
+		locationManager.requestLocationUpdates(provider, minTime, minDistance, this);
+	}
+	
+	private void updateRegionsFromLocation(Location location) {
+		JSONArray boundaries = fetchRegions(location);
+		if(boundaries != null) {
+			List<Region> regions = Region.getRegions(boundaries);
+			List<Region> enteredRegions = null;
+			List<Region> exitedRegions = null;
+			if(this.regions == null) {
+				enteredRegions = regions;
+			} else {
+				exitedRegions = Region.difference(this.regions, regions);
+				enteredRegions = Region.difference(this.regions, regions);
+			}
+			
+			if(enteredRegions != null && enteredRegions.size() > 0)
+				for(ILocationHandler handler : locationHandlers)
+					handler.onRegionsEntered(enteredRegions, previousLocation, location);
+			
+			if(exitedRegions != null && exitedRegions.size() > 0)
+				for(ILocationHandler handler : locationHandlers)
+					handler.onRegionsExited(exitedRegions, previousLocation, location);
+			
+			this.regions = regions;
+		}
+	}
+	
+	private JSONArray fetchRegions(Location location) {
+		JSONArray boundaries = null;
+		try {
+			SimpleGeoClient client = SimpleGeoClient.getInstance();
+			Object returnObject = client.contains(location.getLatitude(), location.getLongitude());
+			
+			// There are two possible return values from the client
+			// depending on the value of futureTask
+			if(client.futureTask)
+				boundaries = (JSONArray)((FutureTask)returnObject).get();
+			else
+				boundaries = (JSONArray)returnObject;
+
+		} catch (ClientProtocolException e) {
+			Log.e(TAG, e.toString(), e);
+		} catch (IOException e) {
+			Log.e(TAG, e.toString(), e);			
+		} catch (InterruptedException e) {
+			Log.e(TAG, e.toString(), e);	
+		} catch (ExecutionException e) {
+			Log.e(TAG, e.toString(), e);			
+		}
+		
+		return boundaries;
+	}
+	
+	private void updateRecordsFromLocation(Location location) {
 		List<IRecord> updateRecords = new ArrayList<IRecord>();
 		List<IRecord> cacheRecords = new ArrayList<IRecord>();
 		for(ILocationHandler locationHandler : locationHandlers) {
@@ -128,39 +220,57 @@ public class LocationService extends Service implements LocationListener {
 		}
 		
 		if(!updateRecords.isEmpty())
-			try {
-				SimpleGeoClient.getInstance().update(updateRecords);
-			} catch (ClientProtocolException e) {
-				e.printStackTrace();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+			updateRecords(updateRecords);
 		
 		if(!cacheRecords.isEmpty())
 			cacheRecords(cacheRecords);
 	}
-
-	public void onProviderDisabled(String provider) {
-		// Don't really care...
-	}
-
-	public void onProviderEnabled(String provider) {
-		// Don't really care (or add as a listener)
-	}
-
-	public void onStatusChanged(String provider, int status, Bundle extras) {
-		LocationManager locationManager = (LocationManager)getSystemService(LOCATION_SERVICE);
-		locationManager.requestLocationUpdates(provider, minTime, minDistance, this);
+	
+	public void updateRecords(List<IRecord> records) {
+		if(!records.isEmpty())
+			try {
+				Log.d(TAG, String.format("updating %i records", records.size()));
+				SimpleGeoClient.getInstance().update(records);
+			} catch (ClientProtocolException e) {
+				Log.e(TAG, e.toString(), e);
+			} catch (IOException e) {
+				Log.e(TAG, e.toString(), e);
+			}
 	}
 	
 	public void cacheRecords(List<IRecord> records) {
+		if(records != null && records.size() > 0) {
+			Log.d(TAG, String.format("cacheing %i records", records.size()));
+			GeoJSONObject geoJSON = GeoJSONEncoder.getGeoJSONRecord(records);
+			commitLog.commit("update_records", geoJSON.toString());
+		}
+	}
+	
+	public void replayCommitLog() {
+		List<String> commits = commitLog.getCommits("update_records");
+		List<IRecord> recordsToUpdate = new ArrayList<IRecord>();
+		for(String commit : commits) {
+			List<DefaultRecord> records = GeoJSONEncoder.getRecords(new GeoJSONObject(commit));
+			if(records != null)
+				records.addAll(records);
+		}
 		
+		if(!recordsToUpdate.isEmpty())
+			updateRecords(recordsToUpdate);
+	}
+	
+	public void addHandler(ILocationHandler handler) {
+		locationHandlers.add(handler);
+	}
+	
+	public void removeHandler(ILocationHandler handler) {
+		locationHandlers.remove(handler);
 	}
 	
 	/**
 	 * @return the cacheUpdates
 	 */
-	public boolean isCacheUpdates() {
+	public boolean cacheUpdates() {
 		return cacheUpdates;
 	}
 
