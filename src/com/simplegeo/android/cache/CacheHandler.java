@@ -60,7 +60,6 @@ public class CacheHandler {
 	private String currentPath = null;
 	private JSONObject data = null;
 	
-	// I miss real pointers
 	private JSONObject parentData = null;
 	private JSONObject currentData = null;
 	
@@ -138,9 +137,7 @@ public class CacheHandler {
 	
 	private void flushJSONObject(String path, JSONObject object, String key) {
 		try {
-			
 			if(key == null) {
-				
 				Iterator<String> keys = object.keys();
 				while(keys.hasNext())
 					flushJSONObject(path, object, keys.next());
