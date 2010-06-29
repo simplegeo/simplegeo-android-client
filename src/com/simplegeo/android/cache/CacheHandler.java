@@ -285,12 +285,14 @@ public class CacheHandler {
 	
 	private void recursiveDelete(File file) {
 		File[] files = file.listFiles();
-		for(File subdir : files) {
-			if(subdir.isDirectory())
-				recursiveDelete(subdir);
-			else
-				subdir.delete();
-		}
+		if(files != null) {
+			for(File subdir : files) {
+				if(subdir.isDirectory())
+					recursiveDelete(subdir);
+				else
+					subdir.delete();
+			}
+		}	
 	}
 	
 	/**
