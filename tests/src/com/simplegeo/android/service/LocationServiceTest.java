@@ -45,11 +45,16 @@ import android.test.ServiceTestCase;
 
 import com.simplegeo.android.test.TestEnvironment;
 import com.simplegeo.client.SimpleGeoClient;
+import com.simplegeo.client.http.exceptions.APIException;
+import com.simplegeo.client.model.DefaultRecord;
 import com.simplegeo.client.model.Region;
 import com.simplegeo.client.types.Point;
+import com.simplegeo.client.utilities.ModelHelper;
 
 public class LocationServiceTest extends ServiceTestCase<LocationService> {
 
+	String layer = null;
+	
     public LocationServiceTest() {
         super(LocationService.class);
     }
@@ -58,9 +63,10 @@ public class LocationServiceTest extends ServiceTestCase<LocationService> {
     	SimpleGeoClient client = SimpleGeoClient.getInstance();
     	client.getHttpClient().setToken(TestEnvironment.getKey(), TestEnvironment.getSecret());
     	client.futureTask = false;
+    	layer = TestEnvironment.getLayer();
     	super.setUp();
     }
-        
+            
     public void testStartable() {
         Intent startIntent = new Intent();
         startIntent.setClass(getContext(), LocationService.class);
@@ -73,6 +79,67 @@ public class LocationServiceTest extends ServiceTestCase<LocationService> {
         startIntent.setClass(getContext(), LocationService.class);
         IBinder service = bindService(startIntent);
         assertNotNull(service);        
+    }
+    
+    public void testTrackRecords() throws ClientProtocolException, IOException {
+        Intent startIntent = new Intent();
+        startIntent.setClass(getContext(), LocationService.class);
+        startService(startIntent);
+    	LocationService locationService = getService();
+    	
+    	DefaultRecord record = ModelHelper.getRandomDefaultRecord();
+    	record.setLayer(layer);
+    	
+    	locationService.trackedRecords.add(record);
+    	
+    	Location location = new Location("");
+    	location.setLatitude(10.0); location.setLongitude(10.0);
+    	locationService.onLocationChanged(location);
+
+    	ModelHelper.waitForWrite();
+		record = (DefaultRecord)SimpleGeoClient.getInstance().retrieve(record);
+		assertEquals(record.getLatitude(), location.getLatitude());
+		assertEquals(record.getLongitude(), location.getLongitude());
+		
+		SimpleGeoClient.getInstance().delete(record);
+		ModelHelper.waitForWrite();
+    }
+    
+    public void testTrackedCachedRecords() throws ClientProtocolException, IOException {
+        Intent startIntent = new Intent();
+        startIntent.setClass(getContext(), LocationService.class);
+        startService(startIntent);
+        
+    	LocationService locationService = getService();
+    	locationService.setCacheValues(mContext.getCacheDir().getAbsolutePath(), mContext.getPackageName());
+    	locationService.cacheUpdates = true;
+    	
+    	DefaultRecord record = ModelHelper.getRandomDefaultRecord();
+    	record.setLayer(layer);
+    	locationService.trackedRecords.add(record);
+    	
+    	Location location = new Location("");
+    	location.setLatitude(10.0); location.setLongitude(10.0);
+    	locationService.onLocationChanged(location);
+
+    	ModelHelper.waitForWrite();
+    	
+    	try {
+    		record = (DefaultRecord)SimpleGeoClient.getInstance().retrieve(record);
+    		fail();
+    	} catch(APIException e) {
+    		assertEquals(e.statusCode, 404);
+    	}
+    	
+    	locationService.replayCommitLog();
+    	
+    	ModelHelper.waitForWrite();
+    	record = (DefaultRecord)SimpleGeoClient.getInstance().retrieve(record);
+		assertEquals(record.getLatitude(), location.getLatitude());
+		assertEquals(record.getLongitude(), location.getLongitude());
+		
+		SimpleGeoClient.getInstance().delete(record);
+		ModelHelper.waitForWrite();
     }
     
     public void testLocationChange() {
@@ -96,7 +163,6 @@ public class LocationServiceTest extends ServiceTestCase<LocationService> {
     	locationService.onLocationChanged(location);
     	assertEquals(newLocation.getLatitude(), location.getLatitude());
     	assertEquals(newLocation.getLongitude(), location.getLongitude());
-    	
     }
     
     public void testRegionUpdates() throws ClientProtocolException, IOException, JSONException {
@@ -172,4 +238,5 @@ public class LocationServiceTest extends ServiceTestCase<LocationService> {
     			assertTrue(regionSetOne.get(i).equals(regionSetTwo.get(i)));
     	}
     }
+    
 }
