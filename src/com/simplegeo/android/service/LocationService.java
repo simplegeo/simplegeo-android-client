@@ -37,6 +37,7 @@ import java.util.concurrent.FutureTask;
 
 import org.apache.http.client.ClientProtocolException;
 import org.json.JSONArray;
+import org.json.JSONException;
 
 import android.app.Application;
 import android.app.Service;
@@ -55,6 +56,7 @@ import com.simplegeo.client.SimpleGeoClient;
 import com.simplegeo.client.encoder.GeoJSONEncoder;
 import com.simplegeo.client.geojson.GeoJSONObject;
 import com.simplegeo.client.model.DefaultRecord;
+import com.simplegeo.client.model.GeoJSONRecord;
 import com.simplegeo.client.model.IRecord;
 import com.simplegeo.client.model.Region;
 
@@ -66,7 +68,7 @@ public class LocationService extends Service implements LocationListener {
 	private float minDistance = 10.0f;
 	private String username = null;
 	private String cachePath = null;
-	private boolean cacheUpdates = false;
+	public boolean cacheUpdates = false;
 	public boolean enableRegionUpdates = true;
 	
 	private Location previousLocation = null;
@@ -74,7 +76,7 @@ public class LocationService extends Service implements LocationListener {
 	private List<ILocationHandler> locationHandlers = new ArrayList<ILocationHandler>();
 	private CommitLog commitLog = null;
 	
-	public List<IRecord> trackedRecords = null;
+	public List<IRecord> trackedRecords = new ArrayList<IRecord>();
 
     public class LocationBinder extends Binder {
         LocationService getService() {
@@ -97,7 +99,7 @@ public class LocationService extends Service implements LocationListener {
     	// directory from the ContextWrapper where a NPE is
     	// thrown. This only happens in testing.
     	try {
-    		File cacheDir = application.getCacheDir();
+    		File cacheDir = application.getApplicationContext().getCacheDir();
     		cachePath = cacheDir.getAbsolutePath();
    		} catch (Exception e) {
    			Log.e(TAG, e.toString(), e);   			
@@ -105,15 +107,14 @@ public class LocationService extends Service implements LocationListener {
    		}
 
    		try {
-   			username = application.getPackageCodePath();
+   			username = application.getApplicationContext().getPackageName();
    		} catch (Exception e) {
    			Log.e(TAG, e.toString(), e);
    			username = "com.simplegeo.android.cache";
    		}
     	
-    	commitLog = new CommitLog(cachePath, username);
+   		setCacheValues(cachePath, username);
 		updateProviders();
-		replayCommitLog();
     }	
         
     @Override
@@ -233,6 +234,21 @@ public class LocationService extends Service implements LocationListener {
 	private void updateRecordsFromLocation(Location location) {
 		List<IRecord> updateRecords = new ArrayList<IRecord>();
 		List<IRecord> cacheRecords = new ArrayList<IRecord>();
+		
+		for(IRecord record : trackedRecords) {
+			if((record instanceof DefaultRecord) || (record instanceof GeoJSONRecord)) {
+				((DefaultRecord)record).setLatitude(location.getLatitude());
+				((DefaultRecord)record).setLongitude(location.getLongitude());
+			}
+		}
+		
+		if(locationHandlers.isEmpty()) {
+			if(cacheUpdates)
+				cacheRecords.addAll(trackedRecords);
+			else
+				updateRecords.addAll(trackedRecords);
+		}
+		
 		for(ILocationHandler locationHandler : locationHandlers) {
 			List<IRecord> records = locationHandler.getRecords(location, trackedRecords);
 			if(records != null && !records.isEmpty())
@@ -252,7 +268,7 @@ public class LocationService extends Service implements LocationListener {
 	public void updateRecords(List<IRecord> records) {
 		if(!records.isEmpty())
 			try {
-				Log.d(TAG, String.format("updating %i records", records.size()));
+				Log.d(TAG, String.format("updating %d records", records.size()));
 				SimpleGeoClient.getInstance().update(records);
 			} catch (ClientProtocolException e) {
 				Log.e(TAG, e.toString(), e);
@@ -263,7 +279,7 @@ public class LocationService extends Service implements LocationListener {
 	
 	public void cacheRecords(List<IRecord> records) {
 		if(records != null && records.size() > 0) {
-			Log.d(TAG, String.format("cacheing %i records", records.size()));
+			Log.d(TAG, String.format("cacheing %d records", records.size()));
 			GeoJSONObject geoJSON = GeoJSONEncoder.getGeoJSONRecord(records);
 			commitLog.commit("update_records", geoJSON.toString());
 		}
@@ -273,9 +289,16 @@ public class LocationService extends Service implements LocationListener {
 		List<String> commits = commitLog.getCommits("update_records");
 		List<IRecord> recordsToUpdate = new ArrayList<IRecord>();
 		for(String commit : commits) {
-			List<DefaultRecord> records = GeoJSONEncoder.getRecords(new GeoJSONObject(commit));
-			if(records != null)
-				records.addAll(records);
+			GeoJSONObject geoJSON;
+			try {
+				geoJSON = new GeoJSONObject("FeatureCollection", commit);
+				List<DefaultRecord> records = GeoJSONEncoder.getRecords(geoJSON);
+				if(records != null)
+					recordsToUpdate.addAll(records);
+
+			} catch (JSONException e) {
+				Log.e(TAG, e.toString(), e);
+			}
 		}
 		
 		if(!recordsToUpdate.isEmpty())
@@ -335,4 +358,11 @@ public class LocationService extends Service implements LocationListener {
 	public List<Region> getRegions() {
 		return this.regions;
 	}
+	
+	public void setCacheValues(String cachePath, String username) {
+		this.cachePath = cachePath;
+		this.username = username;
+		this.commitLog = new CommitLog(cachePath, username);
+		replayCommitLog();
+	}	
 }
