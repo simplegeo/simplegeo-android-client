@@ -38,6 +38,7 @@ import org.apache.http.client.ClientProtocolException;
 import org.json.JSONArray;
 
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.location.Criteria;
 import android.location.Location;
@@ -59,13 +60,12 @@ import com.simplegeo.client.model.Region;
 public class LocationService extends Service implements LocationListener {
 	
 	private static final String TAG = LocationService.class.getCanonicalName();
-	
-	public static final String MIN_TIME = "minimum_time";
-	public static final String MIN_DISTANCE = "minimun_distance";
-	
-	private long minTime;
-	private float minDistance;
-	private boolean cacheUpdates;
+		
+	private long minTime = 120000;
+	private float minDistance = 10.0f;
+	private String username = null;
+	private String cachePath = null;
+	private boolean cacheUpdates = false;
 	
 	private Location previousLocation = null;
 	private List<Region> regions = null;
@@ -82,23 +82,18 @@ public class LocationService extends Service implements LocationListener {
 	
 	@Override
 	public IBinder onBind(Intent intent) {
-		minTime = intent.getLongExtra(MIN_TIME, 0);
-		minDistance = intent.getFloatExtra(MIN_DISTANCE, 0.0f);		
 		return locationBinder;
 	}
 	
     @Override
     public void onCreate() {
-    	String username = "blah";
-    	String cachePath = "blah";
     	commitLog = new CommitLog(cachePath, username);
-
 		updateProviders();
     }	
     
     @Override
     public void onDestroy() {
-    	
+    	commitLog.flush();
     }
 
     public void updateProviders() {
@@ -160,13 +155,16 @@ public class LocationService extends Service implements LocationListener {
 		JSONArray boundaries = fetchRegions(location);
 		if(boundaries != null) {
 			List<Region> regions = Region.getRegions(boundaries);
-			List<Region> enteredRegions = null;
-			List<Region> exitedRegions = null;
+			List<Region> enteredRegions = new ArrayList<Region>();
+			List<Region> exitedRegions = new ArrayList<Region>();
 			if(this.regions == null) {
 				enteredRegions = regions;
 			} else {
-				exitedRegions = Region.difference(this.regions, regions);
-				enteredRegions = Region.difference(this.regions, regions);
+				exitedRegions.addAll(Region.difference(this.regions, regions));
+				
+				for(Region region : regions)
+					if(!region.contained(this.regions))
+						enteredRegions.add(region);
 			}
 			
 			if(enteredRegions != null && enteredRegions.size() > 0)
@@ -279,5 +277,65 @@ public class LocationService extends Service implements LocationListener {
 	 */
 	public void setCacheUpdates(boolean cacheUpdates) {
 		this.cacheUpdates = cacheUpdates;
+	}
+
+	/**
+	 * @return the minTime
+	 */
+	public long getMinTime() {
+		return minTime;
+	}
+
+	/**
+	 * @param minTime the minTime to set
+	 */
+	public void setMinTime(long minTime) {
+		this.minTime = minTime;
+	}
+
+	/**
+	 * @return the minDistance
+	 */
+	public float getMinDistance() {
+		return minDistance;
+	}
+
+	/**
+	 * @param minDistance the minDistance to set
+	 */
+	public void setMinDistance(float minDistance) {
+		this.minDistance = minDistance;
+	}
+
+	/**
+	 * @return the username
+	 */
+	public String getUsername() {
+		return username;
+	}
+
+	/**
+	 * @param username the username to set
+	 */
+	public void setUsername(String username) {
+		this.username = username;
+	}
+
+	/**
+	 * @return the cachePath
+	 */
+	public String getCachePath() {
+		return cachePath;
+	}
+
+	/**
+	 * @param cachePath the cachePath to set
+	 */
+	public void setCachePath(String cachePath) {
+		this.cachePath = cachePath;
+	}
+	
+	public List<Region> getRegions() {
+		return this.regions;
 	}
 }
