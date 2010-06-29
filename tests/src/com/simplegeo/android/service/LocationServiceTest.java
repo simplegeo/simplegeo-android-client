@@ -37,7 +37,6 @@ import java.util.Map;
 import org.apache.http.client.ClientProtocolException;
 import org.json.JSONArray;
 import org.json.JSONException;
-import org.json.JSONObject;
 
 import android.content.Intent;
 import android.location.Location;
@@ -55,7 +54,6 @@ public class LocationServiceTest extends ServiceTestCase<LocationService> {
         super(LocationService.class);
     }
     
-    @Override
     public void setUp() throws Exception {
     	SimpleGeoClient client = SimpleGeoClient.getInstance();
     	client.getHttpClient().setToken(TestEnvironment.getKey(), TestEnvironment.getSecret());
@@ -77,12 +75,36 @@ public class LocationServiceTest extends ServiceTestCase<LocationService> {
         assertNotNull(service);        
     }
     
+    public void testLocationChange() {
+        Intent startIntent = new Intent();
+        startIntent.setClass(getContext(), LocationService.class);
+        startService(startIntent);
+    	LocationService locationService = getService();
+    	final Location newLocation = new Location("");
+    	LocationHandler locationHandler = new LocationHandler() {
+    		@Override
+    		public void onLocationChanged(Location fromLocation, Location toLocation) {
+    			newLocation.setLatitude(toLocation.getLatitude());
+    			newLocation.setLongitude(toLocation.getLongitude());
+    		}
+    	};
+
+    	locationService.addHandler(locationHandler);
+    	Location location = new Location("");
+    	location.setLatitude(10.0); location.setLongitude(10.0);
+    	
+    	locationService.onLocationChanged(location);
+    	assertEquals(newLocation.getLatitude(), location.getLatitude());
+    	assertEquals(newLocation.getLongitude(), location.getLongitude());
+    	
+    }
+    
     public void testRegionUpdates() throws ClientProtocolException, IOException, JSONException {
         Intent startIntent = new Intent();
         startIntent.setClass(getContext(), LocationService.class);
         startService(startIntent);
 
-    	LocationService locationService = getService();
+        LocationService locationService = getService();
     	Map<Point, JSONArray> stages = getStages();
     	
     	final List<Region> enteredRegions = new ArrayList<Region>();
@@ -122,7 +144,7 @@ public class LocationServiceTest extends ServiceTestCase<LocationService> {
     		assertRegionsEqual(difference, enteredRegions);
     	}
     }
-    
+        
     public Map<Point, JSONArray> getStages() throws ClientProtocolException, IOException {
     	List<Point> points = new ArrayList<Point>();
     	points.add(new Point(34.052659, -118.388672));
@@ -131,7 +153,6 @@ public class LocationServiceTest extends ServiceTestCase<LocationService> {
     	points.add(new Point(39.96028, -105.292969));
     	
     	SimpleGeoClient client = SimpleGeoClient.getInstance();
-    	
     	Map<Point, JSONArray> stages = new HashMap<Point, JSONArray>();
     	for(Point point : points)
     		stages.put(point, (JSONArray)client.contains(point.getLatitude(), point.getLongitude()));
