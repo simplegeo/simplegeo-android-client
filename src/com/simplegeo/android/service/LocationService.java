@@ -28,6 +28,7 @@
  */
 package com.simplegeo.android.service;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,8 +38,8 @@ import java.util.concurrent.FutureTask;
 import org.apache.http.client.ClientProtocolException;
 import org.json.JSONArray;
 
+import android.app.Application;
 import android.app.Service;
-import android.content.Context;
 import android.content.Intent;
 import android.location.Criteria;
 import android.location.Location;
@@ -66,11 +67,14 @@ public class LocationService extends Service implements LocationListener {
 	private String username = null;
 	private String cachePath = null;
 	private boolean cacheUpdates = false;
+	public boolean enableRegionUpdates = true;
 	
 	private Location previousLocation = null;
 	private List<Region> regions = null;
 	private List<ILocationHandler> locationHandlers = new ArrayList<ILocationHandler>();
 	private CommitLog commitLog = null;
+	
+	public List<IRecord> trackedRecords = null;
 
     public class LocationBinder extends Binder {
         LocationService getService() {
@@ -87,10 +91,31 @@ public class LocationService extends Service implements LocationListener {
 	
     @Override
     public void onCreate() {
+    	Application application = getApplication();
+    
+    	// There seems to be a bug when retreiving the cache
+    	// directory from the ContextWrapper where a NPE is
+    	// thrown. This only happens in testing.
+    	try {
+    		File cacheDir = application.getCacheDir();
+    		cachePath = cacheDir.getAbsolutePath();
+   		} catch (Exception e) {
+   			Log.e(TAG, e.toString(), e);   			
+   			cachePath = "/sdcard/";
+   		}
+
+   		try {
+   			username = application.getPackageCodePath();
+   		} catch (Exception e) {
+   			Log.e(TAG, e.toString(), e);
+   			username = "com.simplegeo.android.cache";
+   		}
+    	
     	commitLog = new CommitLog(cachePath, username);
 		updateProviders();
+		replayCommitLog();
     }	
-    
+        
     @Override
     public void onDestroy() {
     	commitLog.flush();
@@ -153,7 +178,7 @@ public class LocationService extends Service implements LocationListener {
 	
 	private void updateRegionsFromLocation(Location location) {
 		JSONArray boundaries = fetchRegions(location);
-		if(boundaries != null) {
+		if(boundaries != null && enableRegionUpdates) {
 			List<Region> regions = Region.getRegions(boundaries);
 			List<Region> enteredRegions = new ArrayList<Region>();
 			List<Region> exitedRegions = new ArrayList<Region>();
@@ -209,7 +234,7 @@ public class LocationService extends Service implements LocationListener {
 		List<IRecord> updateRecords = new ArrayList<IRecord>();
 		List<IRecord> cacheRecords = new ArrayList<IRecord>();
 		for(ILocationHandler locationHandler : locationHandlers) {
-			List<IRecord> records = locationHandler.getRecords(location);
+			List<IRecord> records = locationHandler.getRecords(location, trackedRecords);
 			if(records != null && !records.isEmpty())
 				if(cacheUpdates)
 					cacheRecords.addAll(records);
@@ -305,34 +330,6 @@ public class LocationService extends Service implements LocationListener {
 	 */
 	public void setMinDistance(float minDistance) {
 		this.minDistance = minDistance;
-	}
-
-	/**
-	 * @return the username
-	 */
-	public String getUsername() {
-		return username;
-	}
-
-	/**
-	 * @param username the username to set
-	 */
-	public void setUsername(String username) {
-		this.username = username;
-	}
-
-	/**
-	 * @return the cachePath
-	 */
-	public String getCachePath() {
-		return cachePath;
-	}
-
-	/**
-	 * @param cachePath the cachePath to set
-	 */
-	public void setCachePath(String cachePath) {
-		this.cachePath = cachePath;
 	}
 	
 	public List<Region> getRegions() {

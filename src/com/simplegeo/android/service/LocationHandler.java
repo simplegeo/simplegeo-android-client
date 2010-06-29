@@ -9,8 +9,8 @@ import com.simplegeo.client.model.Region;
 
 public class LocationHandler implements ILocationHandler {
 
-	public List<IRecord> getRecords(Location location) {
-		return null;
+	public List<IRecord> getRecords(Location location, List<IRecord> trackedRecords) {
+		return trackedRecords;
 	}
 
 	public void onLocationChanged(Location fromLocation, Location toLocation) {
