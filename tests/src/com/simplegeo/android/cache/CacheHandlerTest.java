@@ -35,8 +35,12 @@ import android.test.suitebuilder.annotation.SmallTest;
 
 public class CacheHandlerTest extends AndroidTestCase {
 	
-	private CacheHandler cacheHandler = new CacheHandler("/sdcard", "simplegeo_test");
-		
+	private CacheHandler cacheHandler;
+	
+	public void setUp() {
+		cacheHandler = new CacheHandler(mContext.getCacheDir().getAbsolutePath(), "simplegeo_test");
+	}
+	
 	public void tearDown() {
 		cacheHandler.deleteAll();
 	}
