@@ -4,12 +4,14 @@ import java.util.List;
 
 import android.location.Location;
 
+import com.simplegeo.client.model.DefaultRecord;
+import com.simplegeo.client.model.GeoJSONRecord;
 import com.simplegeo.client.model.IRecord;
 import com.simplegeo.client.model.Region;
 
 public class LocationHandler implements ILocationHandler {
 
-	public List<IRecord> getRecords(Location location, List<IRecord> trackedRecords) {
+	public List<IRecord> getRecords(Location location, List<IRecord> trackedRecords) {		
 		return trackedRecords;
 	}
 
