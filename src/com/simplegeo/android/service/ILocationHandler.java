@@ -37,9 +37,9 @@ import com.simplegeo.client.model.Region;
 
 public interface ILocationHandler {
 	
-	public List<IRecord> getRecords(Location location); // optional
-	public void onLocationChanged(Location fromLocation, Location toLocation); // optional
-	public void onRegionsEntered(List<Region> regions, Location fromLocation, Location toLocation); // optional
-	public void onRegionsExited(List<Region> regions, Location fromLocation, Location toLocation); // optional
+	public List<IRecord> getRecords(Location location);
+	public void onLocationChanged(Location fromLocation, Location toLocation); 
+	public void onRegionsEntered(List<Region> regions, Location fromLocation, Location toLocation);
+	public void onRegionsExited(List<Region> regions, Location fromLocation, Location toLocation);
 
 }
