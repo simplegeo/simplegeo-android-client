@@ -63,6 +63,8 @@ import com.simplegeo.client.model.Region;
 public class LocationService extends Service implements LocationListener {
 	
 	private static final String TAG = LocationService.class.getCanonicalName();
+	public static final long DEFAULT_TIME = 120000;
+	public static final float DEFAULT_DISTANCE = 10.0f;
 		
 	private long minTime = 120000;
 	private float minDistance = 10.0f;
@@ -123,7 +125,7 @@ public class LocationService extends Service implements LocationListener {
     }
 
     public void updateProviders() {
-    	updateProviders(null);
+    	updateProviders(null, DEFAULT_TIME, DEFAULT_DISTANCE);
     }
     
     public void addLocationHandler(ILocationHandler locationHandler) {
@@ -134,9 +136,12 @@ public class LocationService extends Service implements LocationListener {
     	locationHandlers.remove(locationHandler);
     }
     
-    public void updateProviders(Criteria criteria) {
+    public void updateProviders(Criteria criteria, long minTime, float minDistance) {
     	if(criteria == null)
     		criteria = generateCriteria();
+    	
+    	this.minTime = minTime;
+    	this.minDistance = minDistance;
     	
 		LocationManager locationManager = (LocationManager)getSystemService(LOCATION_SERVICE);
 		List<String> providerNames = locationManager.getProviders(criteria, true);
@@ -146,8 +151,12 @@ public class LocationService extends Service implements LocationListener {
 	
 	private Criteria generateCriteria() {
 		Criteria criteria = new Criteria();
-		
-		// Do some setup of the criteria.
+		criteria.setAccuracy(Criteria.ACCURACY_FINE);
+		criteria.setBearingRequired(false);
+		criteria.setAltitudeRequired(false);
+		criteria.setSpeedRequired(false);
+		criteria.setCostAllowed(false);
+		criteria.setPowerRequirement(Criteria.POWER_MEDIUM);
 		
 		return criteria;
 	}
@@ -335,24 +344,10 @@ public class LocationService extends Service implements LocationListener {
 	}
 
 	/**
-	 * @param minTime the minTime to set
-	 */
-	public void setMinTime(long minTime) {
-		this.minTime = minTime;
-	}
-
-	/**
 	 * @return the minDistance
 	 */
 	public float getMinDistance() {
 		return minDistance;
-	}
-
-	/**
-	 * @param minDistance the minDistance to set
-	 */
-	public void setMinDistance(float minDistance) {
-		this.minDistance = minDistance;
 	}
 	
 	public List<Region> getRegions() {
