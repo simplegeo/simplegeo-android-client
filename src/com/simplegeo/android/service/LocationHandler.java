@@ -26,64 +26,45 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, 
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package com.simplegeo.android.cache;
+package com.simplegeo.android.service;
 
 import java.util.List;
 
-import android.test.AndroidTestCase;
-import android.test.suitebuilder.annotation.SmallTest;
+import android.location.Location;
 
-public class CacheHandlerTest extends AndroidTestCase {
-	
-	private CacheHandler cacheHandler;
-	
-	public void setUp() {
-		cacheHandler = new CacheHandler(mContext.getCacheDir().getAbsolutePath(), "simplegeo_test");
-	}
-	
-	public void tearDown() {
-		cacheHandler.deleteAll();
-	}
-	
-	@SmallTest
-	public void testCacheSetValue() {
-		
-		cacheHandler.setValue("commit-1", "goldfinger");
-		cacheHandler.setValue("commit-2", "boris");
-		
-		assertTrue(cacheHandler.getValue("commit-1").equals("goldfinger"));
-		assertTrue(cacheHandler.getValue("commit-2").equals("boris"));
-	
-		List<String> values = cacheHandler.getAllValues();
-		assertEquals(values.size(), 2);
-	}
-	
-	@SmallTest
-	public void testCacheDeleteValue() {
-		
-		cacheHandler.setValue("commit-1", "goldfinger");
-		cacheHandler.setValue("commit-2", "boris");
-		
-		cacheHandler.delete("commit-1");
-		assertNull(cacheHandler.getValue("commit-1"));
-		assertTrue(cacheHandler.getValue("commit-2").equals("boris"));
-	}
-	
-	@SmallTest
-	public void testCacheFlush() {
+import com.simplegeo.client.model.IRecord;
+import com.simplegeo.client.model.Region;
 
-		cacheHandler.setValue("commit-1", "goldfinger");
-		cacheHandler.setValue("commit-2", "boris");
+/**
+ * A default implementation of {@link com.simplegeo.android.service.ILocationHandler}.
+ */
+public class LocationHandler implements ILocationHandler {
 
-		cacheHandler.flush();
-		
-		assertNull(cacheHandler.getValue("commit-1"));
-		assertNull(cacheHandler.getValue("commit-2"));
-		
-		cacheHandler.reload();
-		
-		assertTrue(cacheHandler.getValue("commit-1").equals("goldfinger"));
-		assertTrue(cacheHandler.getValue("commit-2").equals("boris"));
+	/**
+	 * @see com.simplegeo.android.service.ILocationHandler#getRecords(android.location.Location, java.util.List)
+	 */
+	public List<IRecord> getRecords(Location location, List<IRecord> trackedRecords) {		
+		return trackedRecords;
+	}
 
+	/**
+	 * @see com.simplegeo.android.service.ILocationHandler#onLocationChanged(android.location.Location, android.location.Location)
+	 */
+	public void onLocationChanged(Location fromLocation, Location toLocation) {
+		;
+	}
+
+	/**
+	 * @see com.simplegeo.android.service.ILocationHandler#onRegionsEntered(java.util.List, android.location.Location, android.location.Location)
+	 */
+	public void onRegionsEntered(List<Region> regions, Location fromLocation, Location toLocation) {
+		;
+	}
+
+	/**
+	 * @see com.simplegeo.android.service.ILocationHandler#onRegionsExited(java.util.List, android.location.Location, android.location.Location)
+	 */
+	public void onRegionsExited(List<Region> regions, Location fromLocation, Location toLocation) {
+		;
 	}
 }

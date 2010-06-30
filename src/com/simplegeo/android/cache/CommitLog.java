@@ -61,7 +61,7 @@ public class CommitLog {
 	 * Commits a new value for the given key. The commit value is stored in
 	 * at file:
 	 * 
-	 * commitlog-${cache_path} -> ${username} -> ${key} -> commit-${current_time}
+	 * commitlog-${username} -> ${key} -> commit-${current_time}
 	 * 
 	 * @param key the key 
 	 * @param commit the commits
@@ -110,6 +110,18 @@ public class CommitLog {
 	 */
 	public void deleteAllCommits() {
 		cacheHandler.deleteAll();
+	}
+	
+	public void startFlushTimer() {
+		cacheHandler.startFlushTimer();
+	}
+	
+	public void stopFlushTimer() {
+		cacheHandler.stopFlushTimer();
+	}
+	
+	public void flush() {
+		cacheHandler.flush();
 	}
 	
 	private String getCommitKey() {
