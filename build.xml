@@ -29,7 +29,7 @@
     <property name="simplegeo.java.client" value="${basedir}/simplegeo-java-client" />
     <property name="dist.dir" value="${basedir}/dist" />   
     <property name="java.doc.dir" value="${dist.dir}/javadoc" />
-    <property name="version" value="0.1.0" />
+    <property name="version" value="0.1.1" />
     <property name="final.name" value="simplegeo-android-client-${version}" />
 
     <path id="android.simplegeo.classpath">

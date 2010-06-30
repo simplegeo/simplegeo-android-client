@@ -61,8 +61,14 @@ import com.simplegeo.client.model.IRecord;
 import com.simplegeo.client.model.Region;
 
 /**
- * @author dsmith
- *
+ *	A local location Service that registers itself with location providers
+ *  in order to receive location updates. This allows the service to do automatic
+ *  updates for pre-registered records whenever the device's location is updated.
+ *  
+ *  Another strong feature of the LocationService is its ability to notify 
+ *  {@link com.simplegeo.android.service.ILocationHandler}s when a new location
+ *  is contained with a different region set. A region set is defined by SimpleGeo's
+ *  PushPin service @see {@link com.simplegeo.client.SimpleGeoClient#contains(double, double)}.  
  */
 public class LocationService extends Service implements LocationListener {
 	
@@ -81,7 +87,6 @@ public class LocationService extends Service implements LocationListener {
 	 */
 	public static final float DEFAULT_DISTANCE = 10.0f;
 	private float minDistance;
-	
 	
 	/**
 	 * When a location notification is received, records can either be updated on the spot

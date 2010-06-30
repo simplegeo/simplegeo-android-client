@@ -1,4 +1,4 @@
-SGClient v0.1.0
+SGClient v0.1.1
 ================================================================================
 
 ABSTRACT:
@@ -28,6 +28,15 @@ Running the unit tests can only be done from Eclipse at the moment.
 
 CHANGES FROM PREVIOUS VERSIONS:
 --------------------------------------------------------------------------------
+Version 0.1.1
+* Created a LocationService class that will register itself with location providers. This allows
+the SimpleGeo LocationService to provide a wrapper around location updates
+* Callback notifications that announce when the device moves in and out of different regions
+based on the SimpleGeo's PushPin service
+* When a location notification is received, IRecords can now be updated automatically by
+pre-registering the objects with the LocationService.
+
 Version 0.1.0
+* Initial commit
 
 ### Copyright (C) 2010 SimpleGeo Inc. All rights reserved.
