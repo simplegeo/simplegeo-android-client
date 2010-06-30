@@ -111,7 +111,7 @@ public class LocationServiceTest extends ServiceTestCase<LocationService> {
         startService(startIntent);
         
     	LocationService locationService = getService();
-    	locationService.setCacheValues(mContext.getCacheDir().getAbsolutePath(), mContext.getPackageName());
+    	locationService.updateCommitLog(mContext.getCacheDir().getAbsolutePath(), mContext.getPackageName());
     	locationService.cacheUpdates = true;
     	
     	DefaultRecord record = ModelHelper.getRandomDefaultRecord();

@@ -60,26 +60,58 @@ import com.simplegeo.client.model.GeoJSONRecord;
 import com.simplegeo.client.model.IRecord;
 import com.simplegeo.client.model.Region;
 
+/**
+ * @author dsmith
+ *
+ */
 public class LocationService extends Service implements LocationListener {
 	
 	private static final String TAG = LocationService.class.getCanonicalName();
+	
+	/**
+	 * The minimum time interval for notifications, in milliseconds. This field is only used 
+	 * as a hint to conserve power, and actual time between location updates
+	 *  may be greater or lesser than this value.
+	 */
 	public static final long DEFAULT_TIME = 120000;
+	private long minTime;
+	
+	/**
+	 * The minimum distance interval for notifications, in meters
+	 */
 	public static final float DEFAULT_DISTANCE = 10.0f;
-		
-	private long minTime = 120000;
-	private float minDistance = 10.0f;
-	private String username = null;
-	private String cachePath = null;
+	private float minDistance;
+	
+	
+	/**
+	 * When a location notification is received, records can either be updated on the spot
+	 * or cached for a later time. Set this value to true if you wish to enable cacheing.
+	 */
 	public boolean cacheUpdates = false;
+	
+	/**
+	 * When a location notification is received,
+	 * {@link com.simplegeo.client.SimpleGeoClient#contains(double, double)} is called
+	 * in order to retrieve the polygons that contain the new point. Set this value to false
+	 * if you do not require region updates based on new location updates.
+	 */
 	public boolean enableRegionUpdates = true;
+	
+	/**
+	 * Add instances of {@link com.simplegeo.client.model.IRecord} to this list
+	 * if you want a record to be updated automatically when a location notification
+	 * is received.
+	 * 
+	 * This list is also passed into {@link com.simplegeo.android.service.ILocationHandler#getRecords(Location, List)}
+	 * to give the handler the opportunity to fine tune records before they are sent to SimpleGeo.
+	 */
+	public List<IRecord> trackedRecords = new ArrayList<IRecord>();
 	
 	private Location previousLocation = null;
 	private List<Region> regions = null;
 	private List<ILocationHandler> locationHandlers = new ArrayList<ILocationHandler>();
 	private CommitLog commitLog = null;
 	
-	public List<IRecord> trackedRecords = new ArrayList<IRecord>();
-
     public class LocationBinder extends Binder {
         LocationService getService() {
             return LocationService.this;
@@ -100,6 +132,7 @@ public class LocationService extends Service implements LocationListener {
     	// There seems to be a bug when retreiving the cache
     	// directory from the ContextWrapper where a NPE is
     	// thrown. This only happens in testing.
+    	String cachePath, username;
     	try {
     		File cacheDir = application.getApplicationContext().getCacheDir();
     		cachePath = cacheDir.getAbsolutePath();
@@ -115,7 +148,7 @@ public class LocationService extends Service implements LocationListener {
    			username = "com.simplegeo.android.cache";
    		}
     	
-   		setCacheValues(cachePath, username);
+   		updateCommitLog(cachePath, username);
 		updateProviders();
     }	
         
@@ -124,18 +157,35 @@ public class LocationService extends Service implements LocationListener {
     	commitLog.flush();
     }
 
+    /**
+     * Update the providers with some provided default values.
+     */
     public void updateProviders() {
     	updateProviders(null, DEFAULT_TIME, DEFAULT_DISTANCE);
     }
     
+    /**
+     * @param locationHandler
+     */
     public void addLocationHandler(ILocationHandler locationHandler) {
     	locationHandlers.add(locationHandler);
     }
     
+    /**
+     * @param locationHandler
+     */
     public void removeLocationHandler(ILocationHandler locationHandler) {
     	locationHandlers.remove(locationHandler);
     }
     
+    /**
+     * Obtain a list of providers and register with them to receive callback
+     * notifications.
+     * 
+     * @param criteria
+     * @param minTime
+     * @param minDistance
+     */
     public void updateProviders(Criteria criteria, long minTime, float minDistance) {
     	if(criteria == null)
     		criteria = generateCriteria();
@@ -149,6 +199,9 @@ public class LocationService extends Service implements LocationListener {
 			locationManager.requestLocationUpdates(providerName, minTime, minDistance, this);
     }
 	
+    /*
+     * Generates a default Criteria object.
+     */
 	private Criteria generateCriteria() {
 		Criteria criteria = new Criteria();
 		criteria.setAccuracy(Criteria.ACCURACY_FINE);
@@ -174,11 +227,11 @@ public class LocationService extends Service implements LocationListener {
 	}
 
 	public void onProviderDisabled(String provider) {
-		// Don't really care...
+		Log.d(TAG, String.format("provider %s was disbaled", provider));
 	}
 
 	public void onProviderEnabled(String provider) {
-		// Possibly add as a listener?
+		Log.d(TAG, String.format("provide %s was enabled", provider));
 	}
 
 	public void onStatusChanged(String provider, int status, Bundle extras) {
@@ -186,6 +239,10 @@ public class LocationService extends Service implements LocationListener {
 		locationManager.requestLocationUpdates(provider, minTime, minDistance, this);
 	}
 	
+	/*
+	 * Determines what regions have been entered/exited based on the new
+	 * location and old location objects.
+	 */
 	private void updateRegionsFromLocation(Location location) {
 		JSONArray boundaries = fetchRegions(location);
 		if(boundaries != null && enableRegionUpdates) {
@@ -214,6 +271,10 @@ public class LocationService extends Service implements LocationListener {
 		}
 	}
 	
+	/*
+	 * Makes the request to the PushPin service in order to retrieve the 
+	 * polygons for a given location.
+	 */
 	private JSONArray fetchRegions(Location location) {
 		JSONArray boundaries = null;
 		try {
@@ -240,6 +301,10 @@ public class LocationService extends Service implements LocationListener {
 		return boundaries;
 	}
 	
+	/*
+	 * Handles the work that updates/caches the list of trackedRecords whenever
+	 * a location notification is recieved.
+	 */
 	private void updateRecordsFromLocation(Location location) {
 		List<IRecord> updateRecords = new ArrayList<IRecord>();
 		List<IRecord> cacheRecords = new ArrayList<IRecord>();
@@ -274,7 +339,7 @@ public class LocationService extends Service implements LocationListener {
 			cacheRecords(cacheRecords);
 	}
 	
-	public void updateRecords(List<IRecord> records) {
+	private void updateRecords(List<IRecord> records) {
 		if(!records.isEmpty())
 			try {
 				Log.d(TAG, String.format("updating %d records", records.size()));
@@ -286,7 +351,7 @@ public class LocationService extends Service implements LocationListener {
 			}
 	}
 	
-	public void cacheRecords(List<IRecord> records) {
+	private void cacheRecords(List<IRecord> records) {
 		if(records != null && records.size() > 0) {
 			Log.d(TAG, String.format("cacheing %d records", records.size()));
 			GeoJSONObject geoJSON = GeoJSONEncoder.getGeoJSONRecord(records);
@@ -294,6 +359,14 @@ public class LocationService extends Service implements LocationListener {
 		}
 	}
 	
+	/**
+	 * During the lifetime of the LocationService, records can potentially be committed
+	 * to the {@link com.simplegeo.android.cache.CommitLog} if 
+	 * {@link com.simplegeo.android.service.LocationService#cacheUpdates} is enabled. 
+	 * 
+	 * Replaying the commit log will call {@link com.simplegeo.client.SimpleGeoClient#update(GeoJSONObject)}
+	 * on all the records that were saved to cache.
+	 */
 	public void replayCommitLog() {
 		List<String> commits = commitLog.getCommits("update_records");
 		List<IRecord> recordsToUpdate = new ArrayList<IRecord>();
@@ -314,10 +387,16 @@ public class LocationService extends Service implements LocationListener {
 			updateRecords(recordsToUpdate);
 	}
 	
+	/**
+	 * @param handler
+	 */
 	public void addHandler(ILocationHandler handler) {
 		locationHandlers.add(handler);
 	}
 	
+	/**
+	 * @param handler
+	 */
 	public void removeHandler(ILocationHandler handler) {
 		locationHandlers.remove(handler);
 	}
@@ -350,13 +429,22 @@ public class LocationService extends Service implements LocationListener {
 		return minDistance;
 	}
 	
+	/**
+	 * @return the current {@link com.simplegeo.client.model.Region}s that contain
+	 * the  
+	 */
 	public List<Region> getRegions() {
 		return this.regions;
 	}
 	
-	public void setCacheValues(String cachePath, String username) {
-		this.cachePath = cachePath;
-		this.username = username;
+	/**
+	 * Creates a new {@link com.simplegeo.android.cache.CommitLog} with the given
+	 * arguments.
+	 * 
+	 * @param cachePath
+	 * @param username
+	 */
+	public void updateCommitLog(String cachePath, String username) {
 		this.commitLog = new CommitLog(cachePath, username);
 		replayCommitLog();
 	}	
