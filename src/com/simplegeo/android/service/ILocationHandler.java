@@ -35,11 +35,54 @@ import android.location.Location;
 import com.simplegeo.client.model.IRecord;
 import com.simplegeo.client.model.Region;
 
+/**
+ * Use this interface in order to receive location notifications from the 
+ * {@link com.simplegeo.android.service.LocationService}.
+ * 
+ */
 public interface ILocationHandler {
 	
+	/**
+	 * Returns a list of {@link com.simplegeo.client.model.IRecord}s that will be updated
+	 * when a location update notification is received by the {@link com.simplegeo.android.service.LocationService}.
+	 * The records that are passed in are the pre-registered 
+	 * {@link com.simplegeo.android.service.LocationService#trackRecords}. This gives the implementor the opportunity
+	 * to manipulate the tracked records before they are updated.
+	 * 
+	 * @param location the new location
+	 * @param trackedRecords the pre-registered track records
+	 * @return A list of records to update. This value can be null if no records need to be updated.
+	 */
 	public List<IRecord> getRecords(Location location, List<IRecord> trackedRecords);
+	
+	/**
+	 * Notifies the implementor that the location has changed. The old location can be null if this is the 
+	 * first location update.
+	 * 
+	 * @param fromLocation the old location
+	 * @param toLocation the new location
+	 */
 	public void onLocationChanged(Location fromLocation, Location toLocation); 
+	
+	/**
+	 * Notifies the implementor that the most recent location update now contains a new set of polygons
+	 * that were retrieved from SimpleGeo's PushPin service.
+	 * 
+	 * @param regions the new set of {@link com.simplegeo.client.model.Region} that contain the new location
+	 * @param fromLocation the old location
+	 * @param toLocation the new location
+	 */
 	public void onRegionsEntered(List<Region> regions, Location fromLocation, Location toLocation);
+	
+	/**
+	 * Notifies the implementor that the most recent location update is no longer contained within a
+	 * set of polygons that were originally retrieved from SimpleGeo's PushPin service. 
+	 * 
+	 * @param regions the old set of {@link com.simplegeo.client.model.Region} that no longer contain
+	 * the new location
+	 * @param fromLocation the old location
+	 * @param toLocation the new location
+	 */
 	public void onRegionsExited(List<Region> regions, Location fromLocation, Location toLocation);
 
 }

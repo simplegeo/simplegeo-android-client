@@ -6,8 +6,6 @@ ABSTRACT:
 
 The android version of the [SimpleGeo Java Client](http://github.com/simplegeo/simplegeo-java-client).
 
-Note: Work is being done to provide background location updates.
-
 REQUIREMENTS:
 --------------------------------------------------------------------------------
 
