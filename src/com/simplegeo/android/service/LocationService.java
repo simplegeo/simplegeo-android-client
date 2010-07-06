@@ -203,7 +203,25 @@ public class LocationService extends Service implements LocationListener {
 		for(String providerName : providerNames)
 			locationManager.requestLocationUpdates(providerName, minTime, minDistance, this);
     }
-	
+    
+    /**
+     * Registers this instance as a listener for the LocationManager. This is useful
+     * if you wish to resume location notifications when an activity has been
+     * paused. 
+     */
+    public void startUpdating() {
+    	updateProviders();
+    }
+    
+    /**
+     * Removes this instance as a listener for the LocatoinManager. This is useful
+     * if you wish to cancel location notifications when an Activity is paused.
+     */
+    public void stopUpdating() {
+    	LocationManager locationManager = (LocationManager)getSystemService(LOCATION_SERVICE);
+    	locationManager.removeUpdates(this);
+    }
+    	
     /*
      * Generates a default Criteria object.
      */
