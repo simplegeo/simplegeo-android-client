@@ -306,7 +306,7 @@ public class LocationService extends Service implements LocationListener {
 			
 			// There are two possible return values from the client
 			// depending on the value of futureTask
-			if(client.futureTask)
+			if(client.getFutureTask())
 				boundaries = (JSONArray)((FutureTask)returnObject).get();
 			else
 				boundaries = (JSONArray)returnObject;
