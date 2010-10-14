@@ -47,12 +47,6 @@
 
     <target name="init">
         <mkdir dir="${build.classes}" />
-        <git command="clone">
-            <args>
-                <arg value="git://github.com/simplegeo/simplegeo-java-client.git" />
-                <arg value="simplegeo-java-client" />
-            </args>
-        </git>
         <ant inheritAll="false" dir="${simplegeo.java.client}" antfile="${simplegeo.java.client}/build.xml" target="jar"/>
     </target>
 
