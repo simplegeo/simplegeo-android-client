@@ -18,6 +18,8 @@ The project is setup to work within an Eclipse environment. Since there is a dep
 *simplegeo-java-client* jar, an ant task has been provided that will clone the HEAD of
 [simplegeo-java-client](http://github.com/simplegeo/simplegeo-java-client).
 
+Before running any of the ant targets, make sure that the sdk.dir value in *local.properties* is set to point to the android sdk on the local machine. 
+
 <code>ant init</code>
 
 You can produce the proper distribution directory by running the following ant task:
