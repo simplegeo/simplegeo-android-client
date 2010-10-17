@@ -16,7 +16,9 @@ USAGE:
 
 The project is setup to work within an Eclipse environment. Since there is a dependency on the 
 *simplegeo-java-client* jar, it has been added as a git-submodule.  In order to retrieve the java client, run the following git commands:
+
 <code>git submodule init</code>
+
 <code>git submodule update</code>
 
 Before running any of the ant targets, make sure that the sdk.dir value in *local.properties* is set to point to the android sdk on the local machine. 
