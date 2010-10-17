@@ -1,0 +1,3 @@
+[submodule "simplegeo-java-client"]
+	path = simplegeo-java-client
+	url = http://github.com/simplegeo/simplegeo-java-client.git

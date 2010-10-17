@@ -40,19 +40,13 @@
         <fileset dir="${simplegeo.java.client}/bin">
             <include name="*.jar" />
         </fileset>
-        <fileset dir="${sdk.dir}/platforms/android-2.0">
+        <fileset dir="${sdk.dir}/platforms/android-7">
             <include name="android.jar" />
         </fileset>
     </path>
 
     <target name="init">
         <mkdir dir="${build.classes}" />
-        <git command="clone">
-            <args>
-                <arg value="git://github.com/simplegeo/simplegeo-java-client.git" />
-                <arg value="simplegeo-java-client" />
-            </args>
-        </git>
         <ant inheritAll="false" dir="${simplegeo.java.client}" antfile="${simplegeo.java.client}/build.xml" target="jar"/>
     </target>
 
@@ -132,31 +126,4 @@
         <delete dir="${build.out}" />
         <delete dir="${dist.dir}" />
     </target>
-
-    <macrodef name="git">
-        <attribute name="command" />
-        <attribute name="dir" default="" />
-        <element name="args" optional="true" />
-        <sequential>
-            <echo message="git @{command}" />
-            <exec executable="git" dir="@{dir}">
-                <arg value="@{command}" />
-                <args/>
-            </exec>
-        </sequential>
-    </macrodef>
-
-    <macrodef name="git-clone-pull">
-        <attribute name="repository" />
-        <attribute name="dest" />
-        <sequential>
-            <git command="clone">
-                <args>
-                    <arg value="@{repository}" />
-                    <arg value="@{dest}" />
-                </args>
-            </git>
-            <git command="pull" dir="@{dest}" />
-        </sequential>
-    </macrodef>
 </project>
