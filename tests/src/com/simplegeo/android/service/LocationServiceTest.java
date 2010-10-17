@@ -43,7 +43,7 @@ import android.location.Location;
 import android.os.IBinder;
 import android.test.ServiceTestCase;
 
-import com.simplegeo.android.test.TestEnvironment;
+import com.simplegeo.android.TestEnvironment;
 import com.simplegeo.client.SimpleGeoClient;
 import com.simplegeo.client.http.exceptions.APIException;
 import com.simplegeo.client.model.DefaultRecord;
@@ -62,7 +62,7 @@ public class LocationServiceTest extends ServiceTestCase<LocationService> {
     public void setUp() throws Exception {
     	SimpleGeoClient client = SimpleGeoClient.getInstance();
     	client.getHttpClient().setToken(TestEnvironment.getKey(), TestEnvironment.getSecret());
-    	client.futureTask = false;
+    	client.setFutureTask(false);
     	layer = TestEnvironment.getLayer();
     	super.setUp();
     }
